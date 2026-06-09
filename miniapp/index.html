@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TuySavdo — Admin Panel</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --white: #FEFEFE;
+            --blush: #F2C4CE;
+            --blush-light: #FBF0F2;
+            --blush-mid: #E8A0AE;
+            --blush-deep: #C97A8A;
+            --rose: #B85C6E;
+            --text-dark: #2C1A20;
+            --text-mid: #7A5460;
+            --text-light: #B8909A;
+            --border: #F0D8DC;
+            --gold: #C9A96E;
+            --gold-light: #F5E6D0;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Jost', sans-serif;
+            background: var(--white);
+            color: var(--text-dark);
+            min-height: 100vh;
+            padding: 20px 16px;
+            background-image: radial-gradient(ellipse at top right, #FBF0F2 0%, transparent 60%), radial-gradient(ellipse at bottom left, #FDF5F6 0%, transparent 60%);
+        }
+        .header { text-align: center; margin-bottom: 28px; padding-bottom: 20px; }
+        .header::after { content: ''; display: block; width: 60px; height: 2px; background: linear-gradient(90deg, var(--blush), var(--blush-deep)); margin: 12px auto 0; }
+        .header-badge { display: inline-block; background: var(--blush-light); color: var(--rose); padding: 4px 14px; border-radius: 20px; font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; border: 1px solid var(--border); }
+        .header h1 { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 500; color: var(--text-dark); letter-spacing: 1px; }
+        .header h1 span { color: var(--rose); }
+        .header p { font-size: 12px; color: var(--text-light); margin-top: 4px; font-weight: 300; }
+        .nav-tabs { display: flex; gap: 0; margin-bottom: 24px; background: var(--blush-light); border-radius: 50px; padding: 4px; border: 1px solid var(--border); }
+        .nav-tab { flex: 1; padding: 8px 4px; border: none; background: transparent; color: var(--text-light); font-size: 11px; font-weight: 500; border-radius: 50px; cursor: pointer; font-family: 'Jost', sans-serif; transition: all 0.2s; }
+        .nav-tab.active { background: var(--white); color: var(--rose); box-shadow: 0 2px 8px rgba(184,92,110,0.15); }
+        .page { display: none; }
+        .page.active { display: block; }
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
+        .stat-card { background: var(--white); border: 1px solid var(--border); border-radius: 16px; padding: 16px; position: relative; overflow: hidden; }
+        .stat-card::before { content: ''; position: absolute; top: 0; right: 0; width: 60px; height: 60px; border-radius: 0 16px 0 60px; opacity: 0.15; }
+        .stat-card.blush::before { background: var(--blush-deep); }
+        .stat-card.rose::before { background: var(--rose); }
+        .stat-card.gold::before { background: var(--gold); }
+        .stat-card.mid::before { background: var(--blush-mid); }
+        .stat-icon { font-size: 20px; margin-bottom: 8px; }
+        .stat-value { font-family: 'Cormorant Garamond', serif; font-size: 30px; font-weight: 600; color: var(--text-dark); line-height: 1; }
+        .stat-label { font-size: 11px; color: var(--text-light); margin-top: 4px; font-weight: 300; }
+        .section { background: var(--white); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+        .section-title { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-weight: 500; color: var(--text-dark); margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+        .filter-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+        .tab { flex: 1; padding: 7px 4px; border: 1px solid var(--border); background: var(--white); color: var(--text-light); font-size: 11px; font-weight: 500; border-radius: 8px; cursor: pointer; font-family: 'Jost', sans-serif; transition: all 0.2s; }
+        .tab.active { background: var(--blush-light); color: var(--rose); border-color: var(--blush); }
+        .booking-item { background: var(--blush-light); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+        .booking-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .booking-id { font-family: 'Cormorant Garamond', serif; font-size: 15px; font-weight: 600; color: var(--text-dark); }
+        .status-badge { font-size: 10px; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+        .status-badge.pending { background: #FFF8E7; color: #B8860B; border: 1px solid #F0D88A; }
+        .status-badge.confirmed { background: #F0FFF4; color: #276749; border: 1px solid #9AE6B4; }
+        .status-badge.rejected { background: #FFF5F5; color: #C53030; border: 1px solid #FEB2B2; }
+        .status-badge.awaiting { background: #EBF8FF; color: #2B6CB0; border: 1px solid #90CDF4; }
+        .booking-details { font-size: 12px; color: var(--text-mid); line-height: 1.8; }
+        .booking-amount { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 600; color: var(--rose); margin-top: 6px; }
+        .metric-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+        .metric-row:last-child { border-bottom: none; }
+        .metric-name { color: var(--text-mid); font-weight: 300; }
+        .metric-val { color: var(--text-dark); font-weight: 600; }
+        .revenue-display { text-align: center; padding: 24px; background: linear-gradient(135deg, var(--blush-light), var(--white)); border: 1px solid var(--border); border-radius: 16px; margin-bottom: 16px; }
+        .revenue-amount { font-family: 'Cormorant Garamond', serif; font-size: 48px; font-weight: 600; color: var(--rose); line-height: 1; }
+        .revenue-label { font-size: 12px; color: var(--text-light); margin-top: 6px; letter-spacing: 1px; text-transform: uppercase; }
+        .user-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--blush-light); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; }
+        .user-avatar { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+        .user-avatar.venue { background: var(--blush); }
+        .user-avatar.client { background: var(--gold-light); }
+        .user-name { font-size: 13px; font-weight: 500; color: var(--text-dark); }
+        .user-company { font-size: 11px; color: var(--text-light); }
+        .user-role { margin-left: auto; font-size: 10px; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+        .user-role.venue { background: var(--blush-light); color: var(--rose); border: 1px solid var(--border); }
+        .user-role.client { background: var(--gold-light); color: #8B6914; border: 1px solid #E8D4A0; }
+        .group-label { font-family: 'Cormorant Garamond', serif; font-size: 14px; font-weight: 500; color: var(--text-mid); margin: 16px 0 8px; }
+        .empty-state { text-align: center; padding: 32px; color: var(--text-light); }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-badge">Admin Panel</div>
+    <h1>Tuy<span>Savdo</span></h1>
+    <p id="data-status">Loading...</p>
+</div>
+
+<div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('overview', this)">Overview</button>
+    <button class="nav-tab" onclick="showPage('bookings', this)">Bookings</button>
+    <button class="nav-tab" onclick="showPage('revenue', this)">Revenue</button>
+    <button class="nav-tab" onclick="showPage('users', this)">Users</button>
+</div>
+
+<!-- OVERVIEW -->
+<div id="page-overview" class="page active">
+    <div class="stats-grid">
+        <div class="stat-card blush">
+            <div class="stat-icon">🏛</div>
+            <div class="stat-value" id="stat-venues">0</div>
+            <div class="stat-label">Venues</div>
+        </div>
+        <div class="stat-card gold">
+            <div class="stat-icon">🎊</div>
+            <div class="stat-value" id="stat-clients">0</div>
+            <div class="stat-label">Clients</div>
+        </div>
+        <div class="stat-card rose">
+            <div class="stat-icon">📋</div>
+            <div class="stat-value" id="stat-bookings">0</div>
+            <div class="stat-label">Bookings</div>
+        </div>
+        <div class="stat-card mid">
+            <div class="stat-icon">💰</div>
+            <div class="stat-value" id="stat-revenue">$0</div>
+            <div class="stat-label">Revenue</div>
+        </div>
+    </div>
+    <div class="section">
+        <div class="section-title">✦ Platform Activity</div>
+        <div class="metric-row"><span class="metric-name">Pending Bookings</span><span class="metric-val" id="stat-pending">0</span></div>
+        <div class="metric-row"><span class="metric-name">Confirmed Bookings</span><span class="metric-val" id="stat-confirmed">0</span></div>
+        <div class="metric-row"><span class="metric-name">This Week</span><span class="metric-val" id="stat-week">0 bookings</span></div>
+        <div class="metric-row"><span class="metric-name">This Month</span><span class="metric-val" id="stat-month">0 bookings</span></div>
+        <div class="metric-row"><span class="metric-name">Revenue This Week</span><span class="metric-val" id="stat-rev-week">$0</span></div>
+        <div class="metric-row"><span class="metric-name">Commission Rate</span><span class="metric-val">0.1%</span></div>
+    </div>
+</div>
+
+<!-- BOOKINGS -->
+<div id="page-bookings" class="page">
+    <div class="filter-tabs">
+        <button class="tab active" onclick="filterBookings('all', this)">All</button>
+        <button class="tab" onclick="filterBookings('confirmed', this)">Confirmed</button>
+        <button class="tab" onclick="filterBookings('pending', this)">Pending</button>
+        <button class="tab" onclick="filterBookings('rejected', this)">Rejected</button>
+    </div>
+    <div id="bookings-list"></div>
+</div>
+
+<!-- REVENUE -->
+<div id="page-revenue" class="page">
+    <div class="filter-tabs">
+        <button class="tab active" onclick="filterRevenue('week', this)">Week</button>
+        <button class="tab" onclick="filterRevenue('month', this)">Month</button>
+        <button class="tab" onclick="filterRevenue('year', this)">Year</button>
+        <button class="tab" onclick="filterRevenue('all', this)">All Time</button>
+    </div>
+    <div class="revenue-display">
+        <div class="revenue-amount" id="revenue-display">$0</div>
+        <div class="revenue-label" id="revenue-label">This Week</div>
+    </div>
+    <div class="section">
+        <div class="section-title">✦ Revenue Breakdown</div>
+        <div class="metric-row"><span class="metric-name">This Week</span><span class="metric-val" id="rev-week">$0</span></div>
+        <div class="metric-row"><span class="metric-name">This Month</span><span class="metric-val" id="rev-month">$0</span></div>
+        <div class="metric-row"><span class="metric-name">This Year</span><span class="metric-val" id="rev-year">$0</span></div>
+        <div class="metric-row"><span class="metric-name">All Time</span><span class="metric-val" id="rev-all">$0</span></div>
+    </div>
+</div>
+
+<!-- USERS -->
+<div id="page-users" class="page">
+    <div id="users-list"></div>
+</div>
+
+<script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+    tg.setHeaderColor('#FEFEFE');
+    tg.setBackgroundColor('#FEFEFE');
+
+    // All data starts empty — filled from real bot data
+    let appData = { bookings: [], users: [], stats: {} };
+    let revenueValues = { week: 0, month: 0, year: 0, all: 0 };
+
+    function loadRealData() {
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            let encoded = urlParams.get('data');
+            if (!encoded && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+                encoded = tg.initDataUnsafe.start_param;
+            }
+            if (encoded) {
+                const d = JSON.parse(atob(encoded));
+                document.getElementById('data-status').textContent = 'Wedding Venue Platform';
+
+                if (d.stats) {
+                    const s = d.stats;
+                    document.getElementById('stat-venues').textContent = s.venues || 0;
+                    document.getElementById('stat-clients').textContent = s.clients || 0;
+                    document.getElementById('stat-bookings').textContent = s.bookings || 0;
+                    document.getElementById('stat-revenue').textContent = '$' + (s.revenue || 0).toFixed(2);
+                    document.getElementById('stat-pending').textContent = s.pending || 0;
+                    document.getElementById('stat-confirmed').textContent = (s.bookings || 0) - (s.pending || 0);
+                    document.getElementById('stat-week').textContent = (s.weekBookings || 0) + ' bookings';
+                    document.getElementById('stat-month').textContent = (s.monthBookings || 0) + ' bookings';
+                    document.getElementById('stat-rev-week').textContent = '$' + (s.weekRevenue || 0).toFixed(2);
+
+                    revenueValues = {
+                        week: s.weekRevenue || 0,
+                        month: s.monthRevenue || 0,
+                        year: s.yearRevenue || 0,
+                        all: s.revenue || 0
+                    };
+
+                    document.getElementById('rev-week').textContent = '$' + revenueValues.week.toFixed(2);
+                    document.getElementById('rev-month').textContent = '$' + revenueValues.month.toFixed(2);
+                    document.getElementById('rev-year').textContent = '$' + revenueValues.year.toFixed(2);
+                    document.getElementById('rev-all').textContent = '$' + revenueValues.all.toFixed(2);
+                    document.getElementById('revenue-display').textContent = '$' + revenueValues.week.toFixed(2);
+                }
+
+                if (d.bookings) appData.bookings = d.bookings;
+                if (d.users) appData.users = d.users;
+
+            } else {
+                document.getElementById('data-status').textContent = 'No data — open from bot';
+            }
+        } catch(e) {
+            document.getElementById('data-status').textContent = 'Error loading data';
+            console.log('Error:', e);
+        }
+
+        renderBookings('all');
+        renderUsers();
+    }
+
+    function showPage(page, btn) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        document.getElementById('page-' + page).classList.add('active');
+        btn.classList.add('active');
+        if (page === 'bookings') renderBookings('all');
+        if (page === 'users') renderUsers();
+    }
+
+    function filterBookings(status, btn) {
+        document.querySelectorAll('#page-bookings .tab').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+        renderBookings(status);
+    }
+
+    function renderBookings(filter) {
+        const container = document.getElementById('bookings-list');
+        let bookings = appData.bookings;
+        if (filter !== 'all') bookings = bookings.filter(b => (b.status || '').toLowerCase() === filter);
+
+        if (!bookings.length) {
+            container.innerHTML = '<div class="empty-state">🌸<br>No bookings found</div>';
+            return;
+        }
+
+        container.innerHTML = bookings.map(b => {
+            const statusClass = (b.status || '').toLowerCase().replace(' ', '-');
+            return `<div class="booking-item">
+                <div class="booking-header">
+                    <span class="booking-id">Booking #${b.id}</span>
+                    <span class="status-badge ${statusClass}">${b.status}</span>
+                </div>
+                <div class="booking-details">
+                    👤 ${b.client} → 🏛 ${b.venue}<br>
+                    📅 ${b.date} · 👥 ${b.guests} guests · 💑 ${b.couple || '—'}
+                </div>
+                <div class="booking-amount">$${(b.total || 0).toLocaleString()} <span style="font-size:11px;color:var(--text-light)">(fee: $${(b.commission || 0).toFixed(2)})</span></div>
+            </div>`;
+        }).join('');
+    }
+
+    function filterRevenue(period, btn) {
+        document.querySelectorAll('#page-revenue .tab').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+        const labels = { week: 'This Week', month: 'This Month', year: 'This Year', all: 'All Time' };
+        document.getElementById('revenue-display').textContent = '$' + (revenueValues[period] || 0).toFixed(2);
+        document.getElementById('revenue-label').textContent = labels[period];
+    }
+
+    function renderUsers() {
+        const container = document.getElementById('users-list');
+        const venues = appData.users.filter(u => u.role === 'venue');
+        const clients = appData.users.filter(u => u.role === 'client');
+
+        if (!appData.users.length) {
+            container.innerHTML = '<div class="empty-state">🌸<br>No users yet</div>';
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="group-label">🏛 Venue Owners (${venues.length})</div>
+            ${venues.map(u => `<div class="user-item">
+                <div class="user-avatar venue">🏛</div>
+                <div><div class="user-name">${u.name}</div><div class="user-company">${u.company || ''}</div></div>
+                <span class="user-role venue">VENUE</span>
+            </div>`).join('')}
+            <div class="group-label">🎊 Clients (${clients.length})</div>
+            ${clients.map(u => `<div class="user-item">
+                <div class="user-avatar client">🎊</div>
+                <div><div class="user-name">${u.name}</div><div class="user-company">${u.company || ''}</div></div>
+                <span class="user-role client">CLIENT</span>
+            </div>`).join('')}
+        `;
+    }
+
+    // Load immediately
+    loadRealData();
+</script>
+</body>
+</html>

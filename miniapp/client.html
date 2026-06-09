@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TuySavdo — Client Dashboard</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --white: #FEFEFE;
+            --blush: #F2C4CE;
+            --blush-light: #FBF0F2;
+            --blush-mid: #E8A0AE;
+            --blush-deep: #C97A8A;
+            --rose: #B85C6E;
+            --text-dark: #2C1A20;
+            --text-mid: #7A5460;
+            --text-light: #B8909A;
+            --border: #F0D8DC;
+            --gold: #C9A96E;
+            --gold-light: #F5E6D0;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Jost', sans-serif;
+            background: var(--white);
+            color: var(--text-dark);
+            min-height: 100vh;
+            padding: 20px 16px;
+            background-image:
+                radial-gradient(ellipse at top right, #FBF0F2 0%, transparent 60%),
+                radial-gradient(ellipse at bottom left, #FDF5F6 0%, transparent 60%);
+        }
+        .header { text-align: center; margin-bottom: 28px; padding-bottom: 20px; }
+        .header::after { content: ''; display: block; width: 60px; height: 2px; background: linear-gradient(90deg, var(--blush), var(--blush-deep)); margin: 12px auto 0; }
+        .header-badge { display: inline-block; background: var(--gold-light); color: #8B6914; padding: 4px 14px; border-radius: 20px; font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; border: 1px solid #E8D4A0; }
+        .header h1 { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 500; color: var(--text-dark); letter-spacing: 1px; }
+        .header h1 span { color: var(--rose); }
+        .header p { font-size: 12px; color: var(--text-light); margin-top: 4px; font-weight: 300; }
+        .nav-tabs { display: flex; gap: 0; margin-bottom: 24px; background: var(--blush-light); border-radius: 50px; padding: 4px; border: 1px solid var(--border); }
+        .nav-tab { flex: 1; padding: 8px 4px; border: none; background: transparent; color: var(--text-light); font-size: 11px; font-weight: 500; border-radius: 50px; cursor: pointer; font-family: 'Jost', sans-serif; transition: all 0.2s; }
+        .nav-tab.active { background: var(--white); color: var(--rose); box-shadow: 0 2px 8px rgba(184, 92, 110, 0.15); }
+        .page { display: none; }
+        .page.active { display: block; }
+        .booking-card { background: var(--white); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+        .booking-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .venue-name { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 600; color: var(--text-dark); }
+        .status-badge { font-size: 10px; padding: 3px 10px; border-radius: 20px; font-weight: 600; letter-spacing: 0.5px; }
+        .status-badge.pending { background: #FFF8E7; color: #B8860B; border: 1px solid #F0D88A; }
+        .status-badge.confirmed { background: #F0FFF4; color: #276749; border: 1px solid #9AE6B4; }
+        .status-badge.rejected { background: #FFF5F5; color: #C53030; border: 1px solid #FEB2B2; }
+        .booking-info { font-size: 12px; color: var(--text-mid); line-height: 2; margin-bottom: 10px; }
+        .booking-total { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 600; color: var(--rose); }
+        .track-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+        .track-label { font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-light); margin-bottom: 12px; }
+        .track-steps { display: flex; justify-content: space-between; position: relative; }
+        .track-steps::before { content: ''; position: absolute; top: 14px; left: 8%; right: 8%; height: 1px; background: var(--border); }
+        .track-step { display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: 1; }
+        .step-dot { width: 28px; height: 28px; border-radius: 50%; background: var(--blush-light); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; }
+        .step-dot.done { background: #F0FFF4; border-color: #9AE6B4; color: #276749; }
+        .step-dot.active { background: var(--blush); border-color: var(--blush-deep); color: var(--rose); }
+        .step-label { font-size: 9px; color: var(--text-light); text-align: center; max-width: 55px; line-height: 1.3; }
+        .venue-card { background: var(--white); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+        .v-name { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 600; color: var(--text-dark); margin-bottom: 8px; }
+        .v-info { font-size: 12px; color: var(--text-mid); line-height: 2; }
+        .v-amenities { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .amenity-tag { background: var(--blush-light); color: var(--rose); padding: 3px 10px; border-radius: 20px; font-size: 11px; border: 1px solid var(--border); }
+        .v-rating { display: inline-flex; align-items: center; gap: 4px; background: var(--gold-light); color: #8B6914; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; border: 1px solid #E8D4A0; margin-top: 8px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
+        .stat-card { background: var(--white); border: 1px solid var(--border); border-radius: 16px; padding: 16px; position: relative; overflow: hidden; }
+        .stat-card::before { content: ''; position: absolute; top: 0; right: 0; width: 60px; height: 60px; border-radius: 0 16px 0 60px; opacity: 0.15; }
+        .stat-card.blush::before { background: var(--blush-deep); }
+        .stat-card.rose::before { background: var(--rose); }
+        .stat-card.gold::before { background: var(--gold); }
+        .stat-card.green::before { background: #38a169; }
+        .stat-icon { font-size: 20px; margin-bottom: 8px; }
+        .stat-value { font-family: 'Cormorant Garamond', serif; font-size: 30px; font-weight: 600; color: var(--text-dark); line-height: 1; }
+        .stat-label { font-size: 11px; color: var(--text-light); margin-top: 4px; font-weight: 300; }
+        .empty-state { text-align: center; padding: 40px; color: var(--text-light); }
+        .empty-icon { font-size: 40px; margin-bottom: 10px; }
+        .empty-text { font-size: 13px; font-weight: 300; font-style: italic; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-badge">Client Portal</div>
+    <h1>Tuy<span>Savdo</span></h1>
+    <p>Your Booking Dashboard</p>
+</div>
+
+<div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('bookings', this)">Bookings</button>
+    <button class="nav-tab" onclick="showPage('track', this)">Tracking</button>
+    <button class="nav-tab" onclick="showPage('venues', this)">Venues</button>
+    <button class="nav-tab" onclick="showPage('stats', this)">Stats</button>
+</div>
+
+<!-- BOOKINGS -->
+<div id="page-bookings" class="page active">
+    <div id="bookings-list"></div>
+</div>
+
+<!-- TRACKING -->
+<div id="page-track" class="page">
+    <div id="track-list"></div>
+</div>
+
+<!-- VENUES -->
+<div id="page-venues" class="page">
+    <div id="venues-list"></div>
+</div>
+
+<!-- STATS -->
+<div id="page-stats" class="page">
+    <div class="stats-grid">
+        <div class="stat-card blush">
+            <div class="stat-icon">📋</div>
+            <div class="stat-value" id="stat-total">3</div>
+            <div class="stat-label">Total Bookings</div>
+        </div>
+        <div class="stat-card green">
+            <div class="stat-icon">✅</div>
+            <div class="stat-value" id="stat-confirmed">1</div>
+            <div class="stat-label">Confirmed</div>
+        </div>
+        <div class="stat-card gold">
+            <div class="stat-icon">⏳</div>
+            <div class="stat-value" id="stat-pending">2</div>
+            <div class="stat-label">Pending</div>
+        </div>
+        <div class="stat-card rose">
+            <div class="stat-icon">💰</div>
+            <div class="stat-value" id="stat-spent">$9K</div>
+            <div class="stat-label">Total Spent</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+    tg.setHeaderColor('#FEFEFE');
+    tg.setBackgroundColor('#FEFEFE');
+
+    const data = {
+        bookings: [
+            { id: 1, venue: "Versal Hall", date: "15/01/2026", guests: 300, total: 9000, commission: 180, status: "Confirmed", event: "💍 Wedding", payment: "Cash" },
+            { id: 2, venue: "Grand Tashkent", date: "20/01/2026", guests: 500, total: 15000, commission: 300, status: "Pending", event: "💍 Wedding", payment: "Card" },
+            { id: 3, venue: "Serena Palace", date: "02/02/2026", guests: 150, total: 4500, commission: 90, status: "Pending", event: "🎂 Birthday", payment: "Cash" },
+        ],
+        venues: [
+            { name: "Versal Hall", address: "Chilonzor, Tashkent", capacity: 500, price: 30, rating: 4.7, reviews: 12, amenities: ["🍽 Catering", "🎵 Music", "💐 Decoration"] },
+            { name: "Grand Tashkent", address: "Yunusabad, Tashkent", capacity: 800, price: 25, rating: 4.5, reviews: 8, amenities: ["🍽 Catering", "🎵 Music"] },
+            { name: "Serena Palace", address: "Mirzo Ulugbek, Tashkent", capacity: 300, price: 35, rating: 4.9, reviews: 15, amenities: ["🍽 Catering", "🎵 Music", "💐 Decoration"] },
+        ]
+    };
+
+    const trackSteps = ["Requested", "Confirmed", "Preparing", "Ready"];
+
+    function showPage(page, btn) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        document.getElementById('page-' + page).classList.add('active');
+        btn.classList.add('active');
+        if (page === 'bookings') renderBookings();
+        if (page === 'track') renderTracking();
+        if (page === 'venues') renderVenues();
+        if (page === 'stats') renderStats();
+    }
+
+    function renderBookings() {
+        const container = document.getElementById('bookings-list');
+        container.innerHTML = data.bookings.map(b => `
+            <div class="booking-card">
+                <div class="booking-card-header">
+                    <div>
+                        <div class="venue-name">🏛 ${b.venue}</div>
+                        <div style="font-size:11px;color:var(--text-light);margin-top:2px">${b.event}</div>
+                    </div>
+                    <span class="status-badge ${b.status.toLowerCase()}">${b.status}</span>
+                </div>
+                <div class="booking-info">
+                    📅 ${b.date} &nbsp;·&nbsp; 👥 ${b.guests} guests<br>
+                    💳 ${b.payment} &nbsp;·&nbsp; Fee: $${b.commission}
+                </div>
+                <div class="booking-total">$${b.total.toLocaleString()}</div>
+            </div>
+        `).join('');
+    }
+
+    function renderTracking() {
+        const container = document.getElementById('track-list');
+        const active = data.bookings.filter(b => b.status !== 'Rejected');
+        if (!active.length) {
+            container.innerHTML = `<div class="empty-state"><div class="empty-icon">🌸</div><div class="empty-text">No active bookings to track</div></div>`;
+            return;
+        }
+        container.innerHTML = active.map(b => {
+            const currentIdx = b.status === 'Confirmed' ? 1 : 0;
+            const steps = trackSteps.map((step, i) => {
+                const cls = i < currentIdx ? 'done' : i === currentIdx ? 'active' : '';
+                const icon = i < currentIdx ? '✓' : i === currentIdx ? '●' : '○';
+                return `<div class="track-step"><div class="step-dot ${cls}">${icon}</div><div class="step-label">${step}</div></div>`;
+            }).join('');
+            return `
+                <div class="booking-card">
+                    <div class="booking-card-header">
+                        <div class="venue-name">🏛 ${b.venue}</div>
+                        <span class="status-badge ${b.status.toLowerCase()}">${b.status}</span>
+                    </div>
+                    <div class="booking-info">📅 ${b.date} &nbsp;·&nbsp; 👥 ${b.guests} guests &nbsp;·&nbsp; ${b.event}</div>
+                    <div class="track-section">
+                        <div class="track-label">Booking Progress</div>
+                        <div class="track-steps">${steps}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderVenues() {
+        const container = document.getElementById('venues-list');
+        container.innerHTML = data.venues.map(v => `
+            <div class="venue-card">
+                <div class="v-name">🏛 ${v.name}</div>
+                <div class="v-info">
+                    📍 ${v.address}<br>
+                    👥 Up to ${v.capacity} guests<br>
+                    💵 $${v.price} per seat
+                </div>
+                <div class="v-rating">⭐ ${v.rating} / 5 &nbsp;·&nbsp; ${v.reviews} reviews</div>
+                <div class="v-amenities">
+                    ${v.amenities.map(a => `<span class="amenity-tag">${a}</span>`).join('')}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function renderStats() {
+        const total = data.bookings.length;
+        const confirmed = data.bookings.filter(b => b.status === 'Confirmed').length;
+        const pending = data.bookings.filter(b => b.status === 'Pending').length;
+        const spent = data.bookings.filter(b => b.status === 'Confirmed').reduce((s, b) => s + b.total, 0);
+        document.getElementById('stat-total').textContent = total;
+        document.getElementById('stat-confirmed').textContent = confirmed;
+        document.getElementById('stat-pending').textContent = pending;
+        document.getElementById('stat-spent').textContent = '$' + (spent / 1000).toFixed(0) + 'K';
+    }
+
+    function loadRealData() {
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            let encoded = urlParams.get('data');
+            if (!encoded && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+                encoded = tg.initDataUnsafe.start_param;
+            }
+            if (encoded) {
+                const realData = JSON.parse(atob(encoded));
+                if (realData.bookings && realData.bookings.length) data.bookings = realData.bookings;
+                if (realData.venues && realData.venues.length) {
+                    data.venues = realData.venues.map(v => ({
+                        name: v.name,
+                        address: v.address || '',
+                        capacity: v.capacity || 0,
+                        price: v.price || 0,
+                        rating: 0,
+                        reviews: 0,
+                        amenities: [
+                            v.amenities?.catering ? '🍽 Catering' : null,
+                            v.amenities?.music ? '🎵 Music' : null,
+                            v.amenities?.decoration ? '💐 Decoration' : null
+                        ].filter(Boolean)
+                    }));
+                }
+                if (realData.stats) {
+                    document.getElementById('stat-total').textContent = realData.stats.total || 0;
+                    document.getElementById('stat-confirmed').textContent = realData.stats.confirmed || 0;
+                    document.getElementById('stat-pending').textContent = realData.stats.pending || 0;
+                    document.getElementById('stat-spent').textContent = '$' + ((realData.stats.spent || 0) / 1000).toFixed(1) + 'K';
+                }
+            }
+        } catch(e) { console.log('Using sample data', e); }
+        renderBookings();
+    }
+
+    loadRealData();
+</script>
+</body>
+</html>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TuySavdo — Venue Dashboard</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --white: #FEFEFE;
+            --blush: #F2C4CE;
+            --blush-light: #FBF0F2;
+            --blush-mid: #E8A0AE;
+            --blush-deep: #C97A8A;
+            --rose: #B85C6E;
+            --text-dark: #2C1A20;
+            --text-mid: #7A5460;
+            --text-light: #B8909A;
+            --border: #F0D8DC;
+            --gold: #C9A96E;
+            --gold-light: #F5E6D0;
+            --green-light: #F0FFF4;
+            --green: #276749;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Jost', sans-serif;
+            background: var(--white);
+            color: var(--text-dark);
+            min-height: 100vh;
+            padding: 20px 16px;
+            background-image:
+                radial-gradient(ellipse at top right, #FBF0F2 0%, transparent 60%),
+                radial-gradient(ellipse at bottom left, #FDF5F6 0%, transparent 60%);
+        }
+        .header { text-align: center; margin-bottom: 28px; padding-bottom: 20px; }
+        .header::after { content: ''; display: block; width: 60px; height: 2px; background: linear-gradient(90deg, var(--blush), var(--blush-deep)); margin: 12px auto 0; }
+        .header-badge { display: inline-block; background: var(--blush-light); color: var(--rose); padding: 4px 14px; border-radius: 20px; font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; border: 1px solid var(--border); }
+        .header h1 { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 500; color: var(--text-dark); letter-spacing: 1px; }
+        .header h1 span { color: var(--rose); }
+        .header p { font-size: 12px; color: var(--text-light); margin-top: 4px; font-weight: 300; }
+        .nav-tabs { display: flex; gap: 0; margin-bottom: 24px; background: var(--blush-light); border-radius: 50px; padding: 4px; border: 1px solid var(--border); }
+        .nav-tab { flex: 1; padding: 8px 4px; border: none; background: transparent; color: var(--text-light); font-size: 11px; font-weight: 500; border-radius: 50px; cursor: pointer; font-family: 'Jost', sans-serif; transition: all 0.2s; }
+        .nav-tab.active { background: var(--white); color: var(--rose); box-shadow: 0 2px 8px rgba(184, 92, 110, 0.15); }
+        .page { display: none; }
+        .page.active { display: block; }
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
+        .stat-card { background: var(--white); border: 1px solid var(--border); border-radius: 16px; padding: 16px; position: relative; overflow: hidden; }
+        .stat-card::before { content: ''; position: absolute; top: 0; right: 0; width: 60px; height: 60px; border-radius: 0 16px 0 60px; opacity: 0.15; }
+        .stat-card.blush::before { background: var(--blush-deep); }
+        .stat-card.rose::before { background: var(--rose); }
+        .stat-card.gold::before { background: var(--gold); }
+        .stat-card.green::before { background: #38a169; }
+        .stat-icon { font-size: 20px; margin-bottom: 8px; }
+        .stat-value { font-family: 'Cormorant Garamond', serif; font-size: 30px; font-weight: 600; color: var(--text-dark); line-height: 1; }
+        .stat-label { font-size: 11px; color: var(--text-light); margin-top: 4px; font-weight: 300; }
+        .section { background: var(--white); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+        .section-title { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-weight: 500; color: var(--text-dark); margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+        .booking-item { background: var(--blush-light); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+        .booking-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .booking-id { font-family: 'Cormorant Garamond', serif; font-size: 15px; font-weight: 600; color: var(--text-dark); }
+        .status-badge { font-size: 10px; padding: 3px 10px; border-radius: 20px; font-weight: 600; letter-spacing: 0.5px; }
+        .status-badge.pending { background: #FFF8E7; color: #B8860B; border: 1px solid #F0D88A; }
+        .status-badge.confirmed { background: #F0FFF4; color: #276749; border: 1px solid #9AE6B4; }
+        .status-badge.rejected { background: #FFF5F5; color: #C53030; border: 1px solid #FEB2B2; }
+        .booking-details { font-size: 12px; color: var(--text-mid); line-height: 1.8; }
+        .booking-amount { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 600; color: var(--rose); margin-top: 6px; }
+        .metric-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+        .metric-row:last-child { border-bottom: none; }
+        .metric-name { color: var(--text-mid); font-weight: 300; }
+        .metric-val { color: var(--text-dark); font-weight: 600; }
+        .calendar-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+        .calendar-item:last-child { border-bottom: none; }
+        .cal-date { font-family: 'Cormorant Garamond', serif; font-size: 15px; font-weight: 600; color: var(--text-dark); }
+        .cal-info { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+        .rating-item { background: var(--blush-light); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 8px; }
+        .rating-stars { font-size: 14px; margin-bottom: 6px; }
+        .rating-comment { font-size: 12px; color: var(--text-mid); font-style: italic; line-height: 1.5; }
+        .rating-date { font-size: 11px; color: var(--text-light); margin-top: 6px; }
+        .avg-rating { text-align: center; padding: 20px; background: linear-gradient(135deg, var(--blush-light), var(--white)); border: 1px solid var(--border); border-radius: 16px; margin-bottom: 16px; }
+        .avg-stars { font-size: 24px; letter-spacing: 4px; }
+        .avg-score { font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 600; color: var(--rose); line-height: 1; margin: 8px 0 4px; }
+        .avg-count { font-size: 12px; color: var(--text-light); font-weight: 300; }
+        .empty-state { text-align: center; padding: 32px; color: var(--text-light); }
+        .empty-icon { font-size: 36px; margin-bottom: 8px; }
+        .empty-text { font-size: 13px; font-weight: 300; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-badge">Venue Owner</div>
+    <h1>Tuy<span>Savdo</span></h1>
+    <p>Your Venue Dashboard</p>
+</div>
+
+<div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('overview', this)">Overview</button>
+    <button class="nav-tab" onclick="showPage('bookings', this)">Bookings</button>
+    <button class="nav-tab" onclick="showPage('calendar', this)">Calendar</button>
+    <button class="nav-tab" onclick="showPage('ratings', this)">Ratings</button>
+</div>
+
+<!-- OVERVIEW -->
+<div id="page-overview" class="page active">
+    <div class="stats-grid">
+        <div class="stat-card blush">
+            <div class="stat-icon">📋</div>
+            <div class="stat-value">18</div>
+            <div class="stat-label">Total Bookings</div>
+        </div>
+        <div class="stat-card green">
+            <div class="stat-icon">✅</div>
+            <div class="stat-value">12</div>
+            <div class="stat-label">Confirmed</div>
+        </div>
+        <div class="stat-card gold">
+            <div class="stat-icon">⏳</div>
+            <div class="stat-value">4</div>
+            <div class="stat-label">Pending</div>
+        </div>
+        <div class="stat-card rose">
+            <div class="stat-icon">💰</div>
+            <div class="stat-value">$54K</div>
+            <div class="stat-label">Revenue</div>
+        </div>
+    </div>
+    <div class="section">
+        <div class="section-title">✦ Venue Details</div>
+        <div class="metric-row"><span class="metric-name">Name</span><span class="metric-val">Versal Hall</span></div>
+        <div class="metric-row"><span class="metric-name">Capacity</span><span class="metric-val">500 guests</span></div>
+        <div class="metric-row"><span class="metric-name">Price</span><span class="metric-val">$30 / seat</span></div>
+        <div class="metric-row"><span class="metric-name">Amenities</span><span class="metric-val">🍽 🎵 💐</span></div>
+        <div class="metric-row"><span class="metric-name">Rating</span><span class="metric-val">⭐ 4.7 / 5</span></div>
+    </div>
+</div>
+
+<!-- BOOKINGS -->
+<div id="page-bookings" class="page">
+    <div id="bookings-list"></div>
+</div>
+
+<!-- CALENDAR -->
+<div id="page-calendar" class="page">
+    <div class="section">
+        <div class="section-title">✦ Booked Dates</div>
+        <div id="calendar-list"></div>
+    </div>
+</div>
+
+<!-- RATINGS -->
+<div id="page-ratings" class="page">
+    <div class="avg-rating">
+        <div class="avg-stars">⭐⭐⭐⭐⭐</div>
+        <div class="avg-score">4.7</div>
+        <div class="avg-count">Based on 12 reviews</div>
+    </div>
+    <div id="ratings-list"></div>
+</div>
+
+<script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+    tg.setHeaderColor('#FEFEFE');
+    tg.setBackgroundColor('#FEFEFE');
+
+    const data = {
+        bookings: [
+            { id: 1, client: "Abdulloh Xabibullaev", date: "15/01/2026", guests: 300, total: 9000, status: "Confirmed", event: "💍 Wedding", payment: "Cash" },
+            { id: 2, client: "Rustam Yusupov", date: "20/01/2026", guests: 500, total: 15000, status: "Pending", event: "💍 Wedding", payment: "Card" },
+            { id: 3, client: "Lisa Vorisova", date: "25/01/2026", guests: 400, total: 12000, status: "Pending", event: "💍 Wedding", payment: "Cash" },
+            { id: 4, client: "Bobur Isroilov", date: "05/01/2026", guests: 200, total: 6000, status: "Rejected", event: "🏢 Corporate", payment: "Card" },
+        ],
+        calendar: [
+            { date: "15/08/2025", event: "💍 Wedding", client: "Abdulloh Xabibullaev", guests: 300 },
+            { date: "25/09/2025", event: "💍 Wedding", client: "Lisa Vorisova", guests: 400 },
+        ],
+        ratings: [
+            { stars: 5, comment: "Excellent venue! Everything was perfect for our wedding.", date: "2026-01-10" },
+            { stars: 5, comment: "Beautiful hall, great service, highly recommended!", date: "2026-01-05" },
+            { stars: 4, comment: "Very good venue, food was amazing.", date: "2026-01-28" },
+            { stars: 5, comment: "Best wedding hall in Tashkent!", date: "2026-01-21" },
+        ]
+    };
+
+    function showPage(page, btn) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        document.getElementById('page-' + page).classList.add('active');
+        btn.classList.add('active');
+        if (page === 'bookings') renderBookings();
+        if (page === 'calendar') renderCalendar();
+        if (page === 'ratings') renderRatings();
+    }
+
+    function renderBookings() {
+        const container = document.getElementById('bookings-list');
+        container.innerHTML = data.bookings.map(b => `
+            <div class="booking-item">
+                <div class="booking-header">
+                    <span class="booking-id">Booking #${b.id}</span>
+                    <span class="status-badge ${b.status.toLowerCase()}">${b.status}</span>
+                </div>
+                <div class="booking-details">
+                    👤 ${b.client} &nbsp;·&nbsp; ${b.event}<br>
+                    📅 ${b.date} &nbsp;·&nbsp; 👥 ${b.guests} guests &nbsp;·&nbsp; 💳 ${b.payment}
+                </div>
+                <div class="booking-amount">$${b.total.toLocaleString()}</div>
+            </div>
+        `).join('');
+    }
+
+    function renderCalendar() {
+        const container = document.getElementById('calendar-list');
+        if (!data.calendar.length) {
+            container.innerHTML = `<div class="empty-state"><div class="empty-icon">🌸</div><div class="empty-text">All dates available</div></div>`;
+            return;
+        }
+        container.innerHTML = data.calendar.map(c => `
+            <div class="calendar-item">
+                <div>
+                    <div class="cal-date">📅 ${c.date}</div>
+                    <div class="cal-info">${c.event} &nbsp;·&nbsp; ${c.client} &nbsp;·&nbsp; 👥 ${c.guests}</div>
+                </div>
+                <span class="status-badge pending">Booked</span>
+            </div>
+        `).join('');
+    }
+
+    function renderRatings() {
+        const container = document.getElementById('ratings-list');
+        container.innerHTML = data.ratings.map(r => `
+            <div class="rating-item">
+                <div class="rating-stars">${'⭐'.repeat(r.stars)}</div>
+                <div class="rating-comment">"${r.comment}"</div>
+                <div class="rating-date">🕐 ${r.date}</div>
+            </div>
+        `).join('');
+    }
+
+    function loadRealData() {
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            let encoded = urlParams.get('data');
+            if (!encoded && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+                encoded = tg.initDataUnsafe.start_param;
+            }
+            if (encoded) {
+                const realData = JSON.parse(atob(encoded));
+                if (realData.stats) {
+                    document.querySelectorAll('.stat-value')[0].textContent = realData.stats.total || 0;
+                    document.querySelectorAll('.stat-value')[1].textContent = realData.stats.confirmed || 0;
+                    document.querySelectorAll('.stat-value')[2].textContent = realData.stats.pending || 0;
+                    document.querySelectorAll('.stat-value')[3].textContent = '$' + ((realData.stats.revenue || 0) / 1000).toFixed(1) + 'K';
+                }
+                if (realData.bookings && realData.bookings.length) data.bookings = realData.bookings;
+                if (realData.calendar && realData.calendar.length) {
+                    data.calendar = realData.calendar.map(c => ({ date: c.date, event: "Booked", client: "", guests: "" }));
+                }
+                if (realData.ratings && realData.ratings.length) {
+                    data.ratings = realData.ratings;
+                }
+                // Update average rating display
+                if (realData.stats && realData.stats.avgRating !== undefined) {
+                    const avg = realData.stats.avgRating || 0;
+                    const count = realData.stats.ratingCount || 0;
+                    const starsEl = document.querySelector('.avg-stars');
+                    const scoreEl = document.querySelector('.avg-score');
+                    const countEl = document.querySelector('.avg-count');
+                    if (starsEl) starsEl.textContent = '⭐'.repeat(Math.round(avg)) || '—';
+                    if (scoreEl) scoreEl.textContent = avg + ' / 5';
+                    if (countEl) countEl.textContent = 'Based on ' + count + ' reviews';
+                }
+                if (realData.venue) {
+                    document.querySelectorAll('.metric-val')[0].textContent = realData.venue.name || '-';
+                    document.querySelectorAll('.metric-val')[1].textContent = (realData.venue.capacity || 0) + ' guests';
+                    document.querySelectorAll('.metric-val')[2].textContent = '$' + (realData.venue.price || 0) + ' / seat';
+                }
+            }
+        } catch(e) { console.log('Using sample data', e); }
+        renderBookings();
+    }
+
+    loadRealData();
+</script>
+</body>
+</html>
