@@ -20,6 +20,7 @@ class Database:
                 name TEXT,
                 company TEXT,
                 role TEXT,
+                language TEXT DEFAULT 'en',
                 registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -43,6 +44,9 @@ class Database:
                 photo_id TEXT DEFAULT '',
                 extra_amenities TEXT DEFAULT '',
                 payment_details TEXT DEFAULT '',
+                is_premium INTEGER DEFAULT 0,
+                premium_expiry TEXT DEFAULT '',
+                total_bookings INTEGER DEFAULT 0,
                 registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -103,9 +107,28 @@ class Database:
         conn.close()
         return result[0] if result else None
 
+    def get_user_language(self, telegram_id):
+        conn = self.get_conn()
+        result = conn.execute("SELECT language FROM users WHERE telegram_id=?", (telegram_id,)).fetchone()
+        conn.close()
+        return result[0] if result else "en"
+
+    def set_user_language(self, telegram_id, language):
+        conn = self.get_conn()
+        conn.execute("INSERT OR IGNORE INTO users (telegram_id, language) VALUES (?,?)", (telegram_id, language))
+        conn.execute("UPDATE users SET language=? WHERE telegram_id=?", (language, telegram_id))
+        conn.commit()
+        conn.close()
+
     def register_user(self, telegram_id, name, company, role):
         conn = self.get_conn()
-        conn.execute("INSERT OR REPLACE INTO users (telegram_id, name, company, role) VALUES (?,?,?,?)", (telegram_id, name, company, role))
+        # Preserve existing language when updating user
+        existing = conn.execute("SELECT language FROM users WHERE telegram_id=?", (telegram_id,)).fetchone()
+        lang = existing[0] if existing else "en"
+        conn.execute(
+            "INSERT OR REPLACE INTO users (telegram_id, name, company, role, language) VALUES (?,?,?,?,?)",
+            (telegram_id, name, company, role, lang)
+        )
         conn.commit()
         conn.close()
 
@@ -118,17 +141,20 @@ class Database:
     # ── Venue methods ────────────────────────────────────────────────────
     def add_venue(self, telegram_id, owner_name, venue_name, address, description,
                   capacity, price_per_seat, contact, latitude=0, longitude=0,
-                  has_catering=0, has_music=0, has_decoration=0, photo_id='', extra_amenities='', payment_details=''):
+                  has_catering=0, has_music=0, has_decoration=0,
+                  photo_id='', extra_amenities='', payment_details=''):
         conn = self.get_conn()
         conn.execute("""
             INSERT OR REPLACE INTO venues
             (telegram_id, owner_name, venue_name, address, description,
-             capacity, price_per_seat, contact,
-             has_catering, has_music, has_decoration, photo_id, payment_details)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+             capacity, price_per_seat, contact, latitude, longitude,
+             has_catering, has_music, has_decoration,
+             photo_id, extra_amenities, payment_details)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (telegram_id, owner_name, venue_name, address, description,
-              capacity, price_per_seat, contact,
-              has_catering, has_music, has_decoration, photo_id, payment_details))
+              capacity, price_per_seat, contact, latitude, longitude,
+              has_catering, has_music, has_decoration,
+              photo_id, extra_amenities, payment_details))
         conn.commit()
         conn.close()
 
@@ -199,8 +225,8 @@ class Database:
                     event_date, guest_count, price_per_seat, payment_method="cash",
                     couple_names="", wishes=""):
         total_cost = round(guest_count * price_per_seat, 2)
-        commission = round(total_cost * 0.001, 2)  # 0.1% commission
-        down_payment = round(total_cost * 0.50, 2)  # 50% down payment
+        commission = round(total_cost * 0.001, 2)
+        down_payment = round(total_cost * 0.50, 2)
         conn = self.get_conn()
         conn.execute("""
             INSERT INTO bookings
@@ -347,3 +373,47 @@ class Database:
 
     def get_total_revenue(self):
         return self.get_revenue_by_period("all")
+
+    # ── Premium methods ──────────────────────────────────────────────────
+    def set_premium(self, venue_id, is_premium, expiry_date=""):
+        conn = self.get_conn()
+        conn.execute("UPDATE venues SET is_premium=?, premium_expiry=? WHERE id=?", (is_premium, expiry_date, venue_id))
+        conn.commit()
+        conn.close()
+
+    def is_venue_premium(self, venue_id):
+        conn = self.get_conn()
+        result = conn.execute("SELECT is_premium, premium_expiry FROM venues WHERE id=?", (venue_id,)).fetchone()
+        conn.close()
+        if not result:
+            return False
+        if result[0] == 0:
+            return False
+        if result[1]:
+            from datetime import datetime
+            try:
+                expiry = datetime.strptime(result[1], "%Y-%m-%d")
+                if expiry < datetime.now():
+                    return False
+            except:
+                pass
+        return True
+
+    def increment_venue_bookings(self, venue_id):
+        conn = self.get_conn()
+        conn.execute("UPDATE venues SET total_bookings = total_bookings + 1 WHERE id=?", (venue_id,))
+        conn.commit()
+        conn.close()
+
+    def get_venue_booking_count(self, venue_id):
+        conn = self.get_conn()
+        result = conn.execute("SELECT total_bookings FROM venues WHERE id=?", (venue_id,)).fetchone()
+        conn.close()
+        return result[0] if result else 0
+
+    def get_all_venues_sorted(self):
+        """Return venues with premium venues first"""
+        conn = self.get_conn()
+        result = conn.execute("SELECT * FROM venues ORDER BY is_premium DESC, total_bookings DESC").fetchall()
+        conn.close()
+        return result

@@ -66,6 +66,12 @@ class AdminHandler:
             return await self.revenue_report(update, context)
         elif text in ["📅 This Week", "🗓 This Month", "📆 This Year", "📋 All Bookings List", "🔙 Back to Admin"]:
             return await self.handle_filter(update, context)
+        elif text == "👑 Premium Management":
+            return await self.premium_management(update, context)
+        elif text == "👑 Premium Subscribers":
+            return await self.premium_subscribers(update, context)
+        elif text.startswith("✅ Grant Premium:") or text.startswith("❌ Revoke Premium:"):
+            return await self.handle_premium_action(update, context)
         else:
             await update.message.reply_text("Please choose an option.", reply_markup=ADMIN_MENU)
             return ADMIN_ACTION
@@ -153,6 +159,105 @@ class AdminHandler:
         await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=ADMIN_MENU)
         return ADMIN_ACTION
 
+    async def premium_subscribers(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Shows ONLY premium subscribers"""
+        venues = self.db.get_all_venues()
+        premium_venues = [v for v in venues if self.db.is_venue_premium(v[0])]
+
+        if not premium_venues:
+            await update.message.reply_text(
+                "👑 *Premium Subscribers*\n\nNo premium venues yet.",
+                parse_mode="Markdown", reply_markup=ADMIN_MENU
+            )
+            return ADMIN_ACTION
+
+        msg = f"👑 *Premium Subscribers ({len(premium_venues)} total):*\n\n"
+        for v in premium_venues:
+            confirmed = len([b for b in self.db.get_venue_bookings(v[0]) if b[7] == "Confirmed"])
+            conn = self.db.get_conn()
+            expiry = conn.execute("SELECT premium_expiry FROM venues WHERE id=?", (v[0],)).fetchone()
+            conn.close()
+            expiry_date = expiry[0] if expiry and expiry[0] else "No expiry"
+            msg += (
+                f"👑 *{v[3]}*\n"
+                f"   👤 Owner: {v[2]}\n"
+                f"   📞 Contact: {v[8]}\n"
+                f"   ✅ Confirmed bookings: {confirmed}\n"
+                f"   📅 Premium until: {expiry_date}\n\n"
+            )
+
+        await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=ADMIN_MENU)
+        return ADMIN_ACTION
+
+    async def premium_management(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        venues = self.db.get_all_venues()
+        if not venues:
+            await update.message.reply_text("No venues registered yet.", reply_markup=ADMIN_MENU)
+            return ADMIN_ACTION
+
+        premium_venues = [v for v in venues if self.db.is_venue_premium(v[0])]
+        free_venues = [v for v in venues if not self.db.is_venue_premium(v[0])]
+
+        msg = "👑 *Premium Management*\n\n"
+
+        msg += f"👑 *PREMIUM VENUES ({len(premium_venues)}):*\n"
+        if premium_venues:
+            for v in premium_venues:
+                confirmed = len([b for b in self.db.get_venue_bookings(v[0]) if b[7] == "Confirmed"])
+                conn = self.db.get_conn()
+                expiry = conn.execute("SELECT premium_expiry FROM venues WHERE id=?", (v[0],)).fetchone()
+                conn.close()
+                expiry_date = expiry[0] if expiry and expiry[0] else "No expiry set"
+                msg += f"   👑 *{v[3]}* (ID: {v[0]})\n"
+                msg += f"   👤 {v[2]} | 📞 {v[8]}\n"
+                msg += f"   ✅ {confirmed} confirmed bookings\n"
+                msg += f"   📅 Expires: {expiry_date}\n\n"
+        else:
+            msg += "   None yet\n\n"
+
+        msg += f"🆓 *FREE VENUES ({len(free_venues)}):*\n"
+        for v in free_venues:
+            confirmed = len([b for b in self.db.get_venue_bookings(v[0]) if b[7] == "Confirmed"])
+            msg += f"   🆓 *{v[3]}* (ID: {v[0]}) | ✅ {confirmed} bookings\n"
+
+        kb_rows = []
+        for v in venues:
+            is_premium = self.db.is_venue_premium(v[0])
+            if is_premium:
+                kb_rows.append([f"❌ Revoke Premium: {v[0]}"])
+            else:
+                kb_rows.append([f"✅ Grant Premium: {v[0]}"])
+        kb_rows.append(["🔙 Back to Admin"])
+
+        await update.message.reply_text(
+            msg, parse_mode="Markdown",
+            reply_markup=ReplyKeyboardMarkup(kb_rows, resize_keyboard=True)
+        )
+        return ADMIN_ACTION
+
+    async def handle_premium_action(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        text = update.message.text
+        from datetime import datetime, timedelta
+
+        if text.startswith("✅ Grant Premium:"):
+            venue_id = int(text.split(":")[1].strip())
+            expiry = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+            self.db.set_premium(venue_id, 1, expiry)
+            await update.message.reply_text(
+                f"👑 *Premium Activated!*\n\nVenue ID {venue_id} is now Premium until {expiry}.",
+                parse_mode="Markdown", reply_markup=ADMIN_MENU
+            )
+
+        elif text.startswith("❌ Revoke Premium:"):
+            venue_id = int(text.split(":")[1].strip())
+            self.db.set_premium(venue_id, 0, "")
+            await update.message.reply_text(
+                f"❌ Premium revoked for Venue ID {venue_id}.",
+                parse_mode="Markdown", reply_markup=ADMIN_MENU
+            )
+
+        return ADMIN_ACTION
+
     async def revenue_report(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         week_rev = self.db.get_revenue_by_period("week")
         month_rev = self.db.get_revenue_by_period("month")
@@ -165,7 +270,7 @@ class AdminHandler:
 
         await update.message.reply_text(
             f"💰 *Revenue Report:*\n\n"
-            f"📊 Commission Rate: *0.1%* per booking\n\n"
+            f"📋 *Monetisation Model:* Freemium (Phase 1 — Free)\n"            f"💡 Phase 2: Flat fee after 10 confirmed bookings\n"            f"👑 Phase 3: Premium subscription available\n\n"
             f"📅 *This Week:*\n   {week_b} bookings | ${week_rev:.2f}\n\n"
             f"🗓 *This Month:*\n   {month_b} bookings | ${month_rev:.2f}\n\n"
             f"📆 *This Year:*\n   {year_b} bookings | ${year_rev:.2f}\n\n"

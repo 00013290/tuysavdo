@@ -7,10 +7,12 @@ from database import Database
 from ai import VenueAdvisor
 from handlers.start_handler import (
     StartHandler,
-    ROLE_CHOICE,
+    LANG_CHOICE, ROLE_CHOICE,
     VENUE_OWNER_NAME, VENUE_NAME, VENUE_ADDRESS, VENUE_DESC,
     VENUE_CAPACITY, VENUE_PRICE, VENUE_CONTACT, VENUE_LOCATION, VENUE_AMENITIES,
-    VENUE_PHOTO, VENUE_EXTRA_AMENITIES, VENUE_PAYMENT_DETAILS, VENUE_UPDATE_FIELD, VENUE_UPDATE_VALUE, VENUE_LOCATION,
+    VENUE_PHOTO, VENUE_EXTRA_AMENITIES, VENUE_PAYMENT_DETAILS,
+    VENUE_UPDATE_FIELD, VENUE_UPDATE_VALUE,
+    VENUE_PREMIUM, PREMIUM_PLAN, PREMIUM_PAY,
     CLIENT_NAME, CLIENT_PHONE,
     BOOK_VENUE, BOOK_DATE, BOOK_GUESTS,
     BOOK_COUPLE, BOOK_WISHES, BOOK_PAYMENT,
@@ -40,6 +42,9 @@ def main():
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start_h.start)],
         states={
+            # Language selection — first step for new users
+            LANG_CHOICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, start_h.lang_choice)],
+
             ROLE_CHOICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, start_h.role_choice)],
 
             # Venue registration
@@ -54,10 +59,6 @@ def main():
                 MessageHandler(filters.LOCATION, venue_h.venue_location),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, venue_h.venue_location)
             ],
-            VENUE_LOCATION: [
-                MessageHandler(filters.LOCATION, venue_h.venue_location),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, venue_h.venue_location)
-            ],
             VENUE_AMENITIES: [MessageHandler(filters.TEXT & ~filters.COMMAND, venue_h.venue_amenities)],
             VENUE_EXTRA_AMENITIES: [MessageHandler(filters.TEXT & ~filters.COMMAND, venue_h.venue_extra_amenities)],
             VENUE_PHOTO: [
@@ -65,6 +66,10 @@ def main():
                 MessageHandler(filters.TEXT & ~filters.COMMAND, venue_h.venue_photo)
             ],
             VENUE_PAYMENT_DETAILS: [MessageHandler(filters.TEXT & ~filters.COMMAND, venue_h.venue_payment_details)],
+
+            VENUE_PREMIUM: [MessageHandler(filters.TEXT & ~filters.COMMAND, venue_h.show_premium)],
+            PREMIUM_PLAN: [MessageHandler(filters.TEXT & ~filters.COMMAND, venue_h.premium_plan_selected)],
+            PREMIUM_PAY: [MessageHandler(filters.TEXT & ~filters.COMMAND, venue_h.premium_payment_sent)],
 
             # Venue management
             VENUE_UPDATE_FIELD: [MessageHandler(filters.TEXT & ~filters.COMMAND, venue_h.edit_venue_start)],
@@ -94,6 +99,7 @@ def main():
             AI_GUESTS: [MessageHandler(filters.TEXT & ~filters.COMMAND, client_h.ai_guests)],
             AI_BUDGET: [MessageHandler(filters.TEXT & ~filters.COMMAND, client_h.ai_budget)],
             AI_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, client_h.ai_date)],
+
             # Admin
             ADMIN_ACTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_h.handle)],
         },
